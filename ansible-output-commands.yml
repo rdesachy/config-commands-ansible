@@ -1,0 +1,100 @@
+- name: Execute commands on network devices
+  hosts: routers:switches
+  gather_facts: true
+  connection: network_cli
+  become: yes
+
+  tasks:
+    - name: Get hostname
+      ios_facts:
+        gather_subset: all
+      register: hostname
+
+    - name: Load configuration commands from file
+      set_fact:
+        config_file: "{{ hostvars[inventory_hostname]['config_file'] }}"
+      when: inventory_hostname in groups['routers'] or inventory_hostname in groups['switches']
+
+    - name: Set configuration commands
+      set_fact:
+        config: "{{ lookup('file', config_file) }}"
+      
+    
+    - name: Debug config
+      debug:
+        var: config
+
+    - name: Configure devicesls
+      ios_config:
+        lines: "{{ config }}"
+      register: output
+      
+    - name: Debug config
+      debug:
+        var: output
+
+    - name: Execute validation commands
+      ios_command:
+        commands: "{{ lookup('file', hostvars[inventory_hostname]['validation_file']) }}"
+      register: validation_output
+      when: inventory_hostname in groups['routers'] or inventory_hostname in groups['switches']
+
+    - name: Debug config
+      debug:
+        var: validation_output
+    
+    - name: Validate Loopback0 configuration on R1
+      ios_command:
+        commands: "show run int lo0"
+      register: lo0_config_r1
+      when: inventory_hostname == 'R1'
+
+    - name: Debug config
+      debug:
+        var: lo0_config_r1
+  
+    - name: Assert Loopback0 configuration on R1
+      assert:
+        that:
+          - lo0_config_r1 is defined
+          - lo0_config_r1.stdout | regex_search('10.0.0.2')
+        fail_msg: "Loopback0 configuration failed on R1"
+      when: inventory_hostname == 'R1'
+    
+
+    - name: Validate Loopback0 configuration on R2
+      ios_command:
+        commands: "show run int lo0"
+      register: lo0_config_r2
+      when: inventory_hostname == 'R2'
+    
+    - name: Debug config
+      debug:
+        var: lo0_config_r2
+  
+    - name: Assert Loopback0 configuration on R2
+      assert:
+        that:
+          - lo0_config_r2 is defined
+          - lo0_config_r2.stdout | regex_search('20.0.0.2')
+        fail_msg: "Loopback0 configuration failed on R2"
+      when: inventory_hostname == 'R2'
+    
+
+    - name: Validate Loopback0 configuration on R3
+      ios_command:
+        commands: "show run int lo0"
+      register: lo0_config_r3
+      when: inventory_hostname == 'R3'
+    
+    - name: Debug config
+      debug:
+        var: lo0_config_r3
+  
+    - name: Assert Loopback0 configuration on R3
+      assert:
+        that:
+          - lo0_config_r3 is defined
+          - lo0_config_r3.stdout | regex_search('30.0.0.2')
+        fail_msg: "Loopback0 configuration failed on R3"
+      when: inventory_hostname == 'R3'

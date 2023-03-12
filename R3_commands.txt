@@ -1,0 +1,4 @@
+int lo0
+ip address 30.0.0.2 255.255.255.255
+description Loopback0
+exit
